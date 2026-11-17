@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM LEADS — Visão Gerencial</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#002f63; --red:#A6192E; --blue:#8BB8E8; --bg:#eef2f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:Montserrat,Arial,sans-serif;color:#222}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 16px 60px}
+  .header{background:var(--navy);border-radius:10px 10px 0 0;padding:22px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px;color:#fff}
+  .header h1{margin:0;font-size:21px}
+  .header .sub{color:var(--blue);font-size:13px;margin-top:4px}
+  .semana-ref{display:inline-block;margin-top:12px;background:var(--red);color:#fff;font-weight:800;font-size:15px;letter-spacing:.04em;padding:9px 16px;border-radius:7px;text-transform:uppercase}
+  .semana-ref small{display:block;font-weight:600;font-size:10px;letter-spacing:.12em;opacity:.85;margin-bottom:2px}
+  .mes-travado{display:inline-flex;align-items:center;gap:6px;background:#f2f6fb;border:1px solid #cddaea;border-radius:6px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--navy);cursor:default}
+  .aviso-semana{text-align:center;padding:26px 10px;color:#002f63;font-size:14px;line-height:1.6}
+  .logo-ph{width:110px;height:34px;border:1.5px dashed rgba(255,255,255,.5);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,.7);flex-shrink:0}
+  .card-shell{background:#fff;border:1px solid #e3e8ee;border-top:none;border-radius:0 0 10px 10px;padding:22px 26px}
+
+  .filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #eee}
+  .filterbar label{font-size:13px;font-weight:700;color:var(--navy)}
+  .dd{position:relative}
+  .dd-btn{background:#f2f6fb;border:1px solid #cddaea;border-radius:6px;padding:8px 14px;font-size:13px;font-family:inherit;color:var(--navy);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:8px}
+  .dd-btn:hover{background:#e6eef8}
+  .dd-panel{position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid #d5dee8;border-radius:8px;box-shadow:0 8px 24px rgba(0,47,99,.15);padding:8px;min-width:240px;max-height:320px;overflow:auto;z-index:50;display:none}
+  .dd-panel.open{display:block}
+  .dd-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;font-size:13px;cursor:pointer}
+  .dd-item:hover{background:#f2f6fb}
+  .dd-item.all{border-bottom:1px solid #eee;margin-bottom:4px;padding-bottom:8px;font-weight:700;color:var(--navy)}
+  .dd-item input{accent-color:var(--navy)}
+  .chip{background:var(--blue);color:var(--navy);font-size:11px;font-weight:700;border-radius:20px;padding:2px 9px}
+
+  h2.sec{color:var(--navy);font-size:15px;border-bottom:2px solid var(--blue);padding-bottom:6px;margin:26px 0 12px}
+  h2.sec:first-of-type{margin-top:0}
+  .sec-expansivel{margin:26px 0 12px;border-bottom:2px solid var(--blue);padding-bottom:0}
+  .sec-expansivel>summary{color:var(--navy);font-size:15px;font-weight:700;cursor:pointer;list-style:none;user-select:none;padding-bottom:6px}
+  .sec-expansivel>summary::-webkit-details-marker{display:none}
+  .sec-expansivel>summary .mais{display:inline-block;width:16px;height:16px;line-height:15px;text-align:center;border:1px solid var(--navy);border-radius:4px;margin-right:6px;font-weight:700;font-size:13px;vertical-align:1px}
+  .sec-expansivel[open]>summary .mais{background:var(--navy);color:#fff}
+  .sec-expansivel>.corpo{padding:12px 0 4px}
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .kpi{flex:1;min-width:125px;background:#f7f9fc;border-left:4px solid var(--navy);border-radius:5px;padding:10px 13px}
+  .kpi .l{font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:.3px}
+  .kpi .v{font-size:18px;font-weight:800;color:var(--navy);margin-top:2px}
+  .kpi.g{border-color:#1a7a3c} .kpi.g .v{color:#1a7a3c}
+  .kpi.r{border-color:var(--red)} .kpi.r .v{color:var(--red)}
+  .kpi .delta{font-size:11px;font-weight:700;margin-top:5px}
+  .kpi .delta.up{color:#1a7a3c} .kpi .delta.down{color:var(--red)} .kpi .delta.flat{color:#888;font-weight:600}
+
+   
+  .team-row{display:grid;grid-template-columns:1fr 90px 70px 16px;align-items:center;gap:6px;width:100%}
+  .team-row .nm{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .team-row .qt{text-align:right;font-weight:400;color:#888}
+  .team-row .pc{text-align:right;font-weight:700;color:var(--navy)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
+  th{background:#f2f6fb;font-weight:700;color:var(--navy)}
+  td.c,th.c{text-align:center} td.rr,th.rr{text-align:right}
+  .pct{color:#888}
+
+  select.msel{font-family:inherit;font-size:13px;padding:6px 10px;border:1px solid #cddaea;border-radius:6px;color:var(--navy);font-weight:600}
+
+  details{border:1px solid #e6ebf1;border-radius:7px;margin-bottom:8px;overflow:hidden}
+  details summary{cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;color:var(--navy);background:#f7f9fc;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details summary::-webkit-details-marker{display:none}
+  details summary .arrow{transition:transform .15s;font-size:11px;color:#999}
+  details[open] summary .arrow{transform:rotate(90deg)}
+  details .body{padding:10px 14px}
+  .empty-note{font-size:13px;color:#888;font-style:italic;padding:2px 0}
+
+  .legenda-status{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:7px;padding:0;margin-bottom:14px;font-size:12px;color:#444;overflow:hidden}
+  .legenda-status summary{cursor:pointer;padding:9px 14px;font-weight:700;color:var(--navy);list-style:none;user-select:none}
+  .legenda-status summary::-webkit-details-marker{display:none}
+  .legenda-status summary .mais{display:inline-block;width:16px;height:16px;line-height:15px;text-align:center;border:1px solid var(--navy);border-radius:4px;margin-right:6px;font-weight:700}
+  .legenda-status[open] summary .mais{background:var(--navy);color:#fff}
+  .legenda-status b{color:var(--navy)}
+  .legenda-status ul{margin:0;padding:2px 14px 12px 32px}
+  .legenda-status li{margin-bottom:3px}
+
+
+  .kpi.clickable{cursor:pointer;transition:box-shadow .12s}
+  .kpi.clickable:hover{box-shadow:0 3px 10px rgba(0,47,99,.18)}
+
+  .chip-filtro{display:none;align-items:center;gap:6px;background:#FDEDF0;border:1px solid var(--red);color:var(--red);font-size:12px;font-weight:700;border-radius:20px;padding:4px 6px 4px 12px}
+  .chip-filtro button{border:none;background:none;color:var(--red);cursor:pointer;font-weight:700;font-size:13px;padding:2px 6px}
+
+  .btn-export{background:var(--red);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .btn-export:hover{opacity:.9}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,20,40,.5);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:200;overflow:auto}
+  .modal-box{background:#fff;border-radius:10px;max-width:760px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+  .modal-head{background:var(--navy);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;flex-shrink:0}
+  .modal-head button{background:none;border:none;color:#fff;font-size:17px;cursor:pointer;line-height:1}
+  .modal-body{padding:18px 20px;overflow:auto}
+  .metodologia{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:7px;padding:12px 16px;margin-top:24px;font-size:12px;color:#444}
+  .metodologia b{color:var(--navy)}
+  .metodologia ul{margin:6px 0 0;padding-left:18px}
+  .metodologia li{margin-bottom:4px}
+  .footer{font-size:11px;color:#888;margin-top:22px;border-top:1px solid #eee;padding-top:10px}
+  .badge-mock{background:#FFF8E1;border:1px solid #FFB300;color:#7a5b00;font-size:12px;border-radius:6px;padding:8px 12px;margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>CRM LEADS — Visão Semanal</h1>
+      <div class="semana-ref" id="semanaRef"></div>
+      <div class="sub" id="subPeriodo"></div>
+    </div>
+    
+  </div>
+
+  <div class="card-shell">
+    <div class="filterbar">
+      <label>Time Comercial:</label>
+      <div class="dd" id="ddRoot">
+        <button class="dd-btn" id="ddBtn" type="button">
+          <span id="ddLabel">Todos os times</span> <span>▾</span>
+        </button>
+        <div class="dd-panel" id="ddPanel"></div>
+      </div>
+      <label style="margin-left:8px">Mês:</label>
+      <span class="mes-travado" id="mesTravado" title="Este relatório mostra só o mês da semana de referência"></span>
+      <div class="chip-filtro" id="canalChip"><span id="canalChipTexto"></span><button onclick="limparFiltroCanal()">✕</button></div>
+      <div class="chip-filtro" id="semanaChip" style="border-color:#002f63;background:#eef4fb;color:#002f63"><span id="semanaChipTexto"></span><button onclick="limparSemanaSelecionada()" style="color:#002f63">✕</button></div>
+      <button class="btn-export" style="margin-left:auto" onclick="exportarExcel()" title="Exporta tudo que está sendo mostrado agora (respeitando o filtro atual) em um Excel com uma aba por bloco">⬇ Exportar Excel</button>
+    </div>
+
+    <h2 class="sec">KPIs Mensais <span style="font-weight:400;color:#888;font-size:12px" id="lblMes"></span></h2>
+    <div style="font-size:12px;color:#888;margin:-6px 0 12px" id="descMensal"></div>
+    <div class="kpis" id="kpiMensal"></div>
+    <div style="font-size:11px;color:#999;margin:8px 0 0">Total de leads = linhas com data de cadastro (coluna B) no mês. Convertidos/Perdidos = linhas que fecharam no mês (por data de mudança de status). * Conversão = Convertidos ÷ Total de leads do mês.</div>
+
+    <div id="blocoSemanal">
+    <h2 class="sec">KPIs Semanais <span style="font-weight:400;color:#888;font-size:12px" id="lblSemana"></span></h2>
+    <div style="font-size:12px;color:#888;margin:-6px 0 12px" id="descSemanal"></div>
+    <div class="kpis" id="kpiSemanal"></div>
+    <div style="font-size:11px;color:#999;margin:8px 0 0">Novos no período = linhas com data de cadastro (coluna B) na semana. * Conversão = Convertidos fechados na semana ÷ Novos da semana — pode passar de 100% quando um Convertido fechou nesta semana mas o lead foi cadastrado antes.</div>
+    </div>
+
+    <div id="avisoMesFechado" style="display:none;background:#eef4fb;border:1px solid #cddaea;border-radius:7px;padding:12px 16px;margin:16px 0;font-size:13px;color:#002f63"></div>
+
+    <h2 class="sec">Convertidos — Picos de Venda <span style="font-weight:400;color:#888;font-size:12px" id="lblPicos"></span></h2>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div style="flex:1;min-width:280px"><div style="font-size:12px;color:#666;font-weight:700;margin-bottom:6px" id="lblGanhosDia"></div><div id="wrapGanhosDia" style="height:240px;position:relative"><canvas id="chartGanhosDia"></canvas></div></div>
+      <div style="flex:1;min-width:280px"><div style="font-size:12px;color:#666;font-weight:700;margin-bottom:6px">Convertidos por semana do mês</div><div id="wrapGanhosSemana" style="height:240px;position:relative"><canvas id="chartGanhosSemana"></canvas></div></div>
+    </div>
+
+    <details class="sec-expansivel" id="secDiasFechar" ontoggle="desenharDiasParaFechar()">
+      <summary><span class="mais">+</span> Convertidos — Tempo até fechar, por time <span style="font-weight:400;color:#888;font-size:12px">(média de dias entre cadastro e fechamento)</span></summary>
+      <div class="corpo">
+        <div style="font-size:12px;color:#888;margin:0 0 12px">Para cada Convertido fechado no período, conta os dias entre a data de cadastro do lead e a data de fechamento — mesmo que o lead tenha sido cadastrado em meses anteriores. A barra mostra a <b>média de dias</b> de cada time.</div>
+        <div id="wrapDiasFechar" style="height:260px"><canvas id="chartDiasFechar"></canvas></div>
+      </div>
+    </details>
+
+    <h2 class="sec">Funil por Time Comercial <span style="font-weight:400;color:#888;font-size:12px" id="lblFunil"></span></h2>
+    <div style="font-size:12px;color:#888;margin:-6px 0 12px" id="descFunil"></div>
+    <details class="legenda-status">
+      <summary><span class="mais">+</span> O que significa cada status</summary>
+      <ul>
+        <li><b>Aberto</b> — lead recém-cadastrado, ainda sem contato realizado.</li>
+        <li><b>Qualificado</b> — primeiro contato já realizado com o cliente.</li>
+        <li><b>Proposta enviada</b> — proposta comercial já enviada.</li>
+        <li><b>Negociando</b> — em negociação ativa.</li>
+        <li><b>Convertido</b> — fechou negócio, virou cliente.</li>
+        <li><b>Perdido</b> — não fechou (com motivo registrado).</li>
+        <li><b>Inativo</b> — sem movimentação por um tempo (regra automática do CRM: 90 dias para licitação, 30 dias para os demais).</li>
+      </ul>
+    </details>
+    <div id="funilPorTime"></div>
+
+    <h2 class="sec">Desempenho por Vendedor <span style="font-weight:400;color:#888;font-size:12px" id="lblVend"></span></h2>
+    <div id="vendLegenda" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:11px;color:#444"></div>
+    <div style="position:relative"><canvas id="chartVendedores"></canvas></div>
+    <div id="vendVazio" class="empty-note" style="display:none">Nenhum vendedor com leads cadastrados na semana nesse filtro.</div>
+
+    <h2 class="sec">Canais de Origem <span style="font-weight:400;color:#888;font-size:12px" id="lblCanais"></span></h2>
+    <div style="max-width:640px"><canvas id="chartCanais" height="220"></canvas></div>
+
+    <div class="metodologia">
+      <b>Como cada bloco é calculado</b>
+      <ul>
+        <li><b>KPI Mensal:</b> Total de leads (cadastrados no mês), Convertidos (fechados no mês), Perdidos (fechados no mês), Conversão (Convertidos fechados ÷ total de leads cadastrados no mês).</li>
+        <li><b>KPI Semanal:</b> Novos (cadastrados na semana), Convertidos (fechados na semana), Perdidos (fechados na semana), Conversão (Convertidos fechados na semana ÷ total de leads cadastrados na semana).</li>
+        <li><b>Funil por Time / Desempenho por Vendedor / Canais de Origem:</b> movimentações de status na semana — cada status conta quantos leads entraram nele durante a semana (Convertido/Perdido = por data de fechamento). Contagem de movimentações, não de leads distintos.</li>
+        <li><b>Convertidos — picos de venda:</b> Convertidos fechados na semana, por dia (seg–dom) e por semana do mês corrente.</li>
+        <li><b>Convertidos — tempo até fechar:</b> dias entre cadastro e fechamento dos Convertidos da semana, total e média por time (inclui leads cadastrados em meses anteriores).</li>
+      </ul>
+    </div>
+    <div class="footer">Dados congelados em <span id="geradoEm"></span>. Cada semana tem o seu próprio link: para outra semana, abra o relatório dela.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this) fecharModal()">
+  <div class="modal-box">
+    <div class="modal-head"><span id="modalTitulo"></span><button onclick="fecharModal()">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+ 
+var LEADS = __RG_LEADS__;
+function _parseISOLocal(s){ if(!s) return new Date(0); var p=String(s).split('-'); return new Date(+p[0], (+p[1])-1, +p[2]); }
+LEADS.forEach(function(l){ l.dataCadastro = _parseISOLocal(l.dataCadastro); l.dataStatus = _parseISOLocal(l.dataStatus); if(l.historico){ l.historico.forEach(function(h){ h.date = _parseISOLocal(h.date); }); } });
+var TEAMS = __RG_TEAMS__;
+var TIMES_OCULTOS = __RG_OCULTOS__;
+var TEAMS_ALL = TEAMS.concat((function(){
+  var extras = {};
+  LEADS.forEach(function(l){ if(TEAMS.indexOf(l.time)<0 && TIMES_OCULTOS.indexOf(l.time)<0 && l.time) extras[l.time]=1; });
+  return Object.keys(extras).sort();
+})());
+var STATUSES = ['Aberto','Qualificado','Proposta enviada','Negociando','Convertido','Perdido','Inativo'];
+var ATIVOS = ['Aberto','Qualificado','Proposta enviada','Negociando'];
+
+var HOJE = new Date(__RG_HOJE__); HOJE.setHours(0,0,0,0);  // "hoje" congelado = dia em que o relatório foi gerado
+function addDays(d,n){ var r=new Date(d); r.setDate(r.getDate()+n); return r; }
+
+document.getElementById('geradoEm').textContent = __RG_GERADO__;
+
+ 
+var selecionados = new Set(TEAMS_ALL); 
+function todosSelecionados(){ return selecionados.size === TEAMS_ALL.length; }
+
+function buildDropdown(){
+  var panel = document.getElementById('ddPanel');
+  var html = '<div class="dd-item all"><input type="checkbox" id="chkTodos"> Todos os times</div>';
+  TEAMS_ALL.forEach(function(t){
+    html += '<label class="dd-item"><input type="checkbox" data-team="'+t+'"> '+t+'</label>';
+  });
+  panel.innerHTML = html;
+  syncCheckboxes();
+
+  document.getElementById('chkTodos').addEventListener('change', function(e){
+    if(e.target.checked){ selecionados = new Set(TEAMS_ALL); } else { selecionados = new Set(); }
+    syncCheckboxes(); atualizarLabel(); renderAll();
+  });
+  panel.querySelectorAll('input[data-team]').forEach(function(cb){
+    cb.addEventListener('change', function(e){
+      var t = e.target.getAttribute('data-team');
+      if(e.target.checked) selecionados.add(t); else selecionados.delete(t);
+      syncCheckboxes(); atualizarLabel(); renderAll();
+    });
+  });
+}
+function syncCheckboxes(){
+  document.getElementById('chkTodos').checked = todosSelecionados();
+  document.querySelectorAll('#ddPanel input[data-team]').forEach(function(cb){
+    cb.checked = selecionados.has(cb.getAttribute('data-team'));
+  });
+}
+function atualizarLabel(){
+  var lbl = document.getElementById('ddLabel');
+  if(todosSelecionados()) lbl.textContent = 'Todos os times';
+  else if(selecionados.size===0) lbl.textContent = 'Nenhum time selecionado';
+  else lbl.textContent = selecionados.size + ' time(s) selecionado(s)';
+}
+document.getElementById('ddBtn').addEventListener('click', function(e){
+  document.getElementById('ddPanel').classList.toggle('open'); e.stopPropagation();
+});
+document.addEventListener('click', function(e){
+  if(!document.getElementById('ddRoot').contains(e.target)) document.getElementById('ddPanel').classList.remove('open');
+});
+
+
+
+function leadsPorTime(){
+  if(todosSelecionados()) return LEADS;
+  return LEADS.filter(function(l){ return selecionados.has(l.time); });
+}
+
+
+var _canalSelecionado = null;
+function leadsFiltrados(){
+  var base = leadsPorTime();
+  if(_canalSelecionado) base = base.filter(function(l){ return l.canal===_canalSelecionado; });
+  return base;
+}
+function limparFiltroCanal(){ _canalSelecionado=null; renderAll(); }
+function atualizarChipCanal(){
+  var el = document.getElementById('canalChip');
+  if(_canalSelecionado){ el.style.display='inline-flex'; document.getElementById('canalChipTexto').textContent='Origem: '+_canalSelecionado; }
+  else el.style.display='none';
+}
+
+ 
+function inicioSemana(ref){ 
+  var d=new Date(ref); var dow=(d.getDay()+6)%7; return addDays(d,-dow);
+}
+function dentro(d,ini,fim){ return d>=ini && d<fim; }
+function fmtR(v){ return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function pct(q,t){ return t>0? (Math.round(1000*q/t)/10) : 0; }
+
+
+
+
+// ── Período FIXO deste relatório (definido no servidor quando o link foi gerado) ──
+// O mês fica travado e a semana é sempre a semana de referência deste link.
+var RG_PERIODO = __RG_PERIODO__;
+var MES_INICIO = _parseISOLocal(RG_PERIODO.mesIni), MES_FIM = _parseISOLocal(RG_PERIODO.mesFim);
+var SEMANA_INICIO = _parseISOLocal(RG_PERIODO.ini), SEMANA_FIM = _parseISOLocal(RG_PERIODO.fim);
+var SEMANA_ANT_INICIO = addDays(SEMANA_INICIO, -7), SEMANA_ANT_FIM = SEMANA_INICIO;
+var MES_SELECIONADO = MES_INICIO.getMonth(), ANO = MES_INICIO.getFullYear();
+var MODO = 'atual', SEMANA_PARCIAL = false, MES_FECHADO = !!RG_PERIODO.mesFechado;
+var PERIODO_MOV_INI = SEMANA_INICIO, PERIODO_MOV_FIM = SEMANA_FIM;
+var _semanaSelecionada = null;   // não existe mais troca de semana dentro do link
+function ehMesFuturo(){ return false; }
+function configurarPeriodo(){ PERIODO_MOV_INI = SEMANA_INICIO; PERIODO_MOV_FIM = SEMANA_FIM; }
+function limparSemanaSelecionada(){}
+
+(function(){
+  var dIni = SEMANA_INICIO.getDate(), ultimo = addDays(SEMANA_FIM,-1);
+  var mesNome = ultimo.toLocaleDateString('pt-BR',{month:'long'});
+  var dois = function(n){ return ('0'+n).slice(-2); };
+  document.getElementById('semanaRef').innerHTML = '<small>Semana de referência deste relatório</small>Do dia '+dois(dIni)+' até '+dois(ultimo.getDate())+' de '+mesNome+' de '+ultimo.getFullYear();
+  document.getElementById('subPeriodo').textContent = 'Segunda a domingo'+(RG_PERIODO.recortada ? ' — recortada no limite do mês' : '')+'. Para outras semanas, abra o link da semana correspondente.';
+  var nm = MES_INICIO.toLocaleDateString('pt-BR',{month:'long'});
+  document.getElementById('mesTravado').textContent = '🔒 '+nm.charAt(0).toUpperCase()+nm.slice(1)+'/'+ANO;
+})();
+
+ 
+function kpiCard(label,val,cls,deltaHtml,onclickFn){
+  var clicavel = onclickFn ? ' clickable" onclick="'+onclickFn+'()' : '';
+  return '<div class="kpi '+(cls||'')+clicavel+'"><div class="l">'+label+'</div><div class="v">'+val+'</div>'+(deltaHtml||'')+'</div>';
+}
+
+function computeKpis(leads, ini, fim){
+  
+  
+  
+  
+  
+  var totalLinhas = leads.filter(function(l){ return dentro(l.dataCadastro,ini,fim); });
+  var ganhosList = leads.filter(function(l){ return l.status==='Convertido' && dentro(l.dataStatus,ini,fim); });
+  var perdidosList = leads.filter(function(l){ return l.status==='Perdido' && dentro(l.dataStatus,ini,fim); });
+  var valorGanho = ganhosList.reduce(function(a,l){ return a+l.valor; },0);
+  var conv = totalLinhas.length>0 ? Math.round(100*ganhosList.length/totalLinhas.length) : 0;
+  return {
+    ativos:totalLinhas.length, novos:totalLinhas.length, ganhosQtd:ganhosList.length, valorGanho:valorGanho, perdidos:perdidosList.length, conv:conv,
+    ativosList:totalLinhas, novosList:totalLinhas, ganhosList:ganhosList, perdidosList:perdidosList
+  };
+}
+
+
+
+
+
+function movimentacoesSemana(leads){
+  var out = [];
+  leads.forEach(function(l){
+    (l.historico||[]).forEach(function(h){
+      if(h.status==='Aberto') return;
+      if(dentro(new Date(h.date), PERIODO_MOV_INI, PERIODO_MOV_FIM)){
+        out.push({ lead:l, status:h.status, date:new Date(h.date) });
+      }
+    });
+  });
+  return out;
+}
+
+function diasParaFechar(l){
+  return Math.max(0, Math.round((l.dataStatus - l.dataCadastro)/86400000));
+}
+
+ 
+var _kpiSemanal = null; 
+
+function abrirModalKPI(tipo){
+  var k = _kpiSemanal; if(!k) return;
+  var titulo, colunas, linhas, resumoExtra = '';
+  function porRazaoSocial(a,b){ return (a.razaoSocial||'').localeCompare(b.razaoSocial||'', 'pt-BR'); }
+  if(tipo==='ativos'){
+    titulo = 'Total de leads no período — '+k.ativosList.length;
+    colunas = ['Razão Social','CNPJ','Estado','Prospector'];
+    linhas = k.ativosList.slice().sort(porRazaoSocial).map(function(l){ return {'Razão Social':l.razaoSocial,'CNPJ':l.cnpj,'Estado':l.uf,'Prospector':l.vendedor}; });
+  } else if(tipo==='novos'){
+    titulo = 'Novos no período — '+k.novosList.length;
+    colunas = ['Razão Social','CNPJ','Estado','Prospector'];
+    linhas = k.novosList.slice().sort(porRazaoSocial).map(function(l){ return {'Razão Social':l.razaoSocial,'CNPJ':l.cnpj,'Estado':l.uf,'Prospector':l.vendedor}; });
+  } else if(tipo==='ganhos'){
+    titulo = 'Convertidos no período — '+k.ganhosList.length+' ('+fmtR(k.valorGanho)+')';
+    colunas = ['Razão Social','CNPJ','Estado','Data de cadastro','Valor','Prospector'];
+    linhas = k.ganhosList.slice().sort(porRazaoSocial).map(function(l){ return {'Razão Social':l.razaoSocial,'CNPJ':l.cnpj,'Estado':l.uf,'Data de cadastro':l.dataCadastro.toLocaleDateString('pt-BR'),'Valor':fmtR(l.valor),'Prospector':l.vendedor}; });
+  } else if(tipo==='perdidos'){
+    var porMotivo={};
+    k.perdidosList.forEach(function(l){ porMotivo[l.motivoPerda]=(porMotivo[l.motivoPerda]||0)+1; });
+    titulo = 'Perdidos no período — '+k.perdidosList.length+' no total';
+    colunas = ['Razão Social','CNPJ','Estado','Motivo','Prospector'];
+    linhas = k.perdidosList.slice().sort(porRazaoSocial).map(function(l){ return {'Razão Social':l.razaoSocial,'CNPJ':l.cnpj,'Estado':l.uf,'Motivo':l.motivoPerda,'Prospector':l.vendedor}; });
+    resumoExtra = '<div style="font-size:12px;color:#666;font-weight:700;margin-bottom:6px">Por motivo (quantidade total por motivo):</div>'+
+      '<table style="margin-bottom:16px"><thead><tr><th>Motivo</th><th class="c">Qtd.</th></tr></thead><tbody>'+
+      Object.keys(porMotivo).sort(function(a,b){return porMotivo[b]-porMotivo[a];}).map(function(m){
+        return '<tr><td>'+m+'</td><td class="c">'+porMotivo[m]+'</td></tr>';
+      }).join('')+'</tbody></table>'+
+      '<div style="font-size:12px;color:#666;font-weight:700;margin-bottom:6px">Detalhe por lead (unitário):</div>';
+  } else if(tipo==='conversao'){
+    
+    titulo = 'Conversão do período — '+k.conv+'% ('+k.ganhosList.length+' Convertido(s) fechado(s) ÷ '+k.novosList.length+' lead(s) cadastrado(s) na semana)';
+    colunas = ['Razão Social','CNPJ','Estado','Data de cadastro','Prospector'];
+    linhas = k.ganhosList.slice().sort(porRazaoSocial).map(function(l){ return {'Razão Social':l.razaoSocial,'CNPJ':l.cnpj,'Estado':l.uf,'Data de cadastro':l.dataCadastro.toLocaleDateString('pt-BR'),'Prospector':l.vendedor}; });
+  }
+  abrirModal(titulo, colunas, linhas, resumoExtra);
+}
+
+function abrirModal(titulo, colunas, linhas, resumoExtraHtml){
+  var thead = '<tr>'+colunas.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
+  var tbody = linhas.length
+    ? linhas.map(function(l){ return '<tr>'+colunas.map(function(c){ var v=l[c]; return '<td>'+(v!=null&&v!==''?v:'—')+'</td>'; }).join('')+'</tr>'; }).join('')
+    : '<tr><td colspan="'+colunas.length+'" class="empty-note">Nenhum lead nesse recorte.</td></tr>';
+  document.getElementById('modalBody').innerHTML = (resumoExtraHtml||'')+'<table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+  document.getElementById('modalTitulo').textContent = titulo;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+function fecharModal(){ document.getElementById('modalOverlay').style.display='none'; }
+
+
+function deltaSpan(atual, anterior, invertido){
+  var delta = atual - anterior;
+  var pctStr = anterior===0 ? (delta===0?'0%':'novo') : ((delta>=0?'+':'')+Math.round(100*delta/anterior)+'%');
+  var bom = invertido ? delta<=0 : delta>=0;
+  var cls = delta===0 ? 'flat' : (bom?'up':'down');
+  var seta = delta===0 ? '—' : (delta>0?'▲':'▼');
+  return '<div class="delta '+cls+'">'+seta+' '+(delta>=0?'+':'')+delta+' ('+pctStr+') vs sem. anterior</div>';
+}
+
+function deltaSpanPP(atual, anterior, invertido){
+  var delta = atual - anterior;
+  var bom = invertido ? delta<=0 : delta>=0;
+  var cls = delta===0 ? 'flat' : (bom?'up':'down');
+  var seta = delta===0 ? '—' : (delta>0?'▲':'▼');
+  return '<div class="delta '+cls+'">'+seta+' '+(delta>=0?'+':'')+delta+' p.p. vs sem. anterior</div>';
+}
+
+function renderKpis(leads, ini, fim, elId){
+  var m = computeKpis(leads, ini, fim);
+  document.getElementById(elId).innerHTML =
+    kpiCard('Total de leads', m.ativos) +
+    kpiCard('Convertidos', m.ganhosQtd+' ('+fmtR(m.valorGanho)+')', 'g') +
+    kpiCard('Perdidos', m.perdidos, 'r') +
+    kpiCard('Conversão do período *', m.conv+'%');
+}
+
+function renderKpisComWoW(leads, ini, fim, iniAnt, fimAnt, elId){
+  var atual = computeKpis(leads, ini, fim);
+  var ant = computeKpis(leads, iniAnt, fimAnt);
+  _kpiSemanal = atual; 
+  document.getElementById(elId).innerHTML =
+    kpiCard('Novos no período', atual.novos, '', deltaSpan(atual.novos, ant.novos, false), "abrirModalKPI('novos')") +
+    kpiCard('Convertidos', atual.ganhosQtd+' ('+fmtR(atual.valorGanho)+')', 'g', deltaSpan(atual.ganhosQtd, ant.ganhosQtd, false), "abrirModalKPI('ganhos')") +
+    kpiCard('Perdidos', atual.perdidos, 'r', deltaSpan(atual.perdidos, ant.perdidos, true), "abrirModalKPI('perdidos')") +
+    kpiCard('Conversão do período *', atual.conv+'%', '', deltaSpanPP(atual.conv, ant.conv, false), "abrirModalKPI('conversao')");
+}
+
+function calcularFunilPorTime(leads){
+  var times = todosSelecionados() ? TEAMS_ALL : Array.from(selecionados);
+  
+  
+  var movs = movimentacoesSemana(leads);
+  var totalGeralMovs = movimentacoesSemana(LEADS).length; 
+  return times.map(function(time){
+    var doTime = movs.filter(function(m){ return m.lead.time===time; });
+    var counts = {}; STATUSES.forEach(function(s){ counts[s]=0; });
+    doTime.forEach(function(m){ counts[m.status]++; });
+    var total = doTime.length;
+    return { time:time, counts:counts, total:total, pctDoTotal:pct(total, totalGeralMovs) };
+  }).sort(function(a,b){ return b.pctDoTotal - a.pctDoTotal; }); 
+}
+
+function renderFunilPorTime(leads){
+  var itens = calcularFunilPorTime(leads);
+
+  var html = '';
+  var dadosGrafico = {}; 
+  itens.forEach(function(item, idx){
+    var linhaResumo = '<div class="team-row"><span class="nm">'+item.time+'</span>'+
+      '<span class="qt">'+item.total+' mov.</span>'+
+      '<span class="pc">'+item.pctDoTotal+'%</span><span class="arrow">▶</span></div>';
+    if(item.total===0){
+      html += '<details><summary>'+linhaResumo+'</summary><div class="body"><div class="empty-note">Sem movimentações de status na semana.</div></div></details>';
+      return;
+    }
+    
+    var statusOrdenado = STATUSES.filter(function(s){ return item.counts[s]>0; }).sort(function(a,b){ return item.counts[b]-item.counts[a]; });
+    var canvasId = 'ftChart'+idx;
+    dadosGrafico[canvasId] = { labels:statusOrdenado, vals:statusOrdenado.map(function(s){return item.counts[s];}) };
+    html += '<details><summary>'+linhaResumo+'</summary>'+
+      '<div class="body"><canvas id="'+canvasId+'" height="150"></canvas></div></details>';
+  });
+  document.getElementById('funilPorTime').innerHTML = html || '<div class="empty-note">Nenhum time no filtro atual.</div>';
+
+  var chartsRefsTime = {};
+  document.querySelectorAll('#funilPorTime details').forEach(function(det){
+    det.addEventListener('toggle', function(){
+      var canvas = det.querySelector('canvas');
+      if(!canvas) return;
+      var cid = canvas.id;
+      if(chartsRefsTime[cid]){ chartsRefsTime[cid].destroy(); delete chartsRefsTime[cid]; }
+      if(!det.open) return;
+      var d = dadosGrafico[cid];
+      chartsRefsTime[cid] = new Chart(canvas, {
+        type:'bar',
+        data:{ labels:d.labels, datasets:[{ label:'Movimentações', data:d.vals, backgroundColor:d.labels.map(function(s){return STATUS_CORES[s];}), borderRadius:4 }] },
+        options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true, ticks:{precision:0}}} }
+      });
+    });
+  });
+}
+
+function calcularVendedores(leads){
+  
+  var movs = movimentacoesSemana(leads);
+  var porVendedor = {};
+  movs.forEach(function(m){
+    var v=m.lead.vendedor;
+    if(!porVendedor[v]){ porVendedor[v]={total:0}; STATUSES.forEach(function(s){ porVendedor[v][s]=0; }); }
+    porVendedor[v][m.status]++;
+    porVendedor[v].total++;
+  });
+  return Object.keys(porVendedor)
+    .filter(function(v){ return porVendedor[v].total>0; })
+    .sort(function(a,b){ return porVendedor[b].total-porVendedor[a].total; })
+    .map(function(v){ var d=porVendedor[v]; d.vendedor=v; return d; });
+}
+
+
+var STATUS_CORES = {
+  'Aberto':'#8BB8E8',
+  'Qualificado':'#5a8fd6',
+  'Proposta enviada':'#3f6bb5',
+  'Negociando':'#002f63',
+  'Convertido':'#1a7a3c',
+  'Perdido':'#A6192E',
+  'Inativo':'#9aa4b0'
+};
+
+var chartVend=null;
+function renderVendedores(leads){
+  var dados = calcularVendedores(leads);
+  var canvas = document.getElementById('chartVendedores');
+  var vazio = document.getElementById('vendVazio');
+  var legenda = document.getElementById('vendLegenda');
+
+  if(chartVend){ chartVend.destroy(); chartVend=null; }
+  if(!dados.length){
+    canvas.style.display='none'; vazio.style.display='block'; legenda.innerHTML='';
+    return;
+  }
+  canvas.style.display='block'; vazio.style.display='none';
+
+  var nomes = dados.map(function(d){ return d.vendedor; });
+  canvas.parentNode.style.height = Math.max(120, dados.length*38 + 40) + 'px';
+
+  var datasets = STATUSES.map(function(s){
+    return {
+      label: s,
+      backgroundColor: STATUS_CORES[s],
+      data: dados.map(function(d){ return d.total>0 ? (100*d[s]/d.total) : 0; }),
+      qtd: dados.map(function(d){ return d[s]; }),
+      borderWidth: 0
+    };
+  });
+
+  chartVend = new Chart(canvas, {
+    type:'bar',
+    data:{ labels:nomes, datasets:datasets },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label:function(ctx){
+              var q = ctx.dataset.qtd[ctx.dataIndex];
+              if(!q) return null;
+              return ctx.dataset.label+': '+q+' ('+Math.round(ctx.parsed.x)+'%)';
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ stacked:true, min:0, max:100, ticks:{ callback:function(v){ return v+'%'; } } },
+        y:{ stacked:true }
+      }
+    }
+  });
+
+  legenda.innerHTML = STATUSES.map(function(s){
+    return '<span style="display:inline-flex;align-items:center;gap:5px">'+
+      '<span style="width:11px;height:11px;border-radius:2px;background:'+STATUS_CORES[s]+';display:inline-block"></span>'+s+'</span>';
+  }).join('');
+}
+
+function calcularCanais(leadsPorTimeSomente){
+  
+  var movs = movimentacoesSemana(leadsPorTimeSomente);
+  var counts={};
+  movs.forEach(function(m){ counts[m.lead.canal]=(counts[m.lead.canal]||0)+1; });
+  var labels = Object.keys(counts).filter(function(c){return counts[c]>0;}).sort(function(a,b){return counts[b]-counts[a];});
+  var vals = labels.map(function(l){return counts[l];});
+  return {labels:labels, vals:vals};
+}
+
+var chartRef=null;
+function renderCanais(leadsPorTimeSomente){
+  
+  
+  var d = calcularCanais(leadsPorTimeSomente);
+  var labels = d.labels, vals = d.vals;
+
+  if(_canalSelecionado && labels.indexOf(_canalSelecionado)<0){ _canalSelecionado=null; } 
+  var cores = labels.map(function(l){ return l===_canalSelecionado ? '#A6192E' : '#002f63'; });
+
+  if(chartRef) chartRef.destroy();
+  chartRef = new Chart(document.getElementById('chartCanais'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ label:'Leads', data:vals, backgroundColor:cores, borderRadius:4 }] },
+    options:{
+      indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true, ticks:{precision:0}}},
+      onClick:function(evt, elements){
+        if(!elements.length) return;
+        var canal = labels[elements[0].index];
+        _canalSelecionado = (_canalSelecionado===canal) ? null : canal; 
+        renderAll(); 
+      },
+      onHover:function(evt, elements){ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; }
+    }
+  });
+  atualizarChipCanal();
+}
+
+ 
+function detalheAOA(lista, colunasExtra){
+  var aoa = [['Razão Social','CNPJ','Estado','Time Comercial','Prospector','Status'].concat(colunasExtra.map(function(c){return c.label;}))];
+  lista.slice().sort(function(a,b){ return (a.razaoSocial||'').localeCompare(b.razaoSocial||'','pt-BR'); }).forEach(function(l){
+    var row = [l.razaoSocial, l.cnpj, l.uf, l.time, l.vendedor, l.status];
+    colunasExtra.forEach(function(c){ row.push(c.get(l)); });
+    aoa.push(row);
+  });
+  return aoa;
+}
+
+function exportarExcel(){
+  var leads = leadsFiltrados();
+  var kMes = computeKpis(leads, MES_INICIO, MES_FIM);
+  var kPer = computeKpis(leads, PERIODO_MOV_INI, PERIODO_MOV_FIM); 
+  var funilItens = calcularFunilPorTime(leads);
+  var vendLinhas = calcularVendedores(leads);
+  var canalDados = calcularCanais(leadsPorTime());
+  var rotuloPer = MODO==='atual' ? 'semana' : 'mês';
+
+  var wb = XLSX.utils.book_new();
+  function addAOA(nome, aoa){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), nome); }
+
+  addAOA('KPIs Mensais', [
+    ['KPI','Valor'],
+    ['Total de leads (mês)', kMes.ativos],
+    ['Convertidos (qtd)', kMes.ganhosQtd],
+    ['Valor ganho (R$)', kMes.valorGanho],
+    ['Perdidos', kMes.perdidos],
+    ['Conversão do período (%)', kMes.conv]
+  ]);
+
+  
+  if(MODO==='atual'){
+    addAOA('KPIs Semanais', [
+      ['KPI','Valor'],
+      ['Novos no período (semana)', kPer.novos],
+      ['Convertidos (qtd)', kPer.ganhosQtd],
+      ['Valor ganho (R$)', kPer.valorGanho],
+      ['Perdidos', kPer.perdidos],
+      ['Conversão do período (%)', kPer.conv]
+    ]);
+  }
+
+  
+  var funilAOA = [['Time Comercial','Status','Movimentações','% do Time','% do Total de Movimentações']];
+  funilItens.forEach(function(item){
+    if(item.total===0){ funilAOA.push([item.time,'(sem movimentações no '+rotuloPer+')',0,'','0%']); return; }
+    STATUSES.filter(function(s){return item.counts[s]>0;}).sort(function(a,b){return item.counts[b]-item.counts[a];}).forEach(function(s){
+      funilAOA.push([item.time, s, item.counts[s], pct(item.counts[s],item.total)+'%', item.pctDoTotal+'%']);
+    });
+  });
+  addAOA('Funil por Time', funilAOA);
+
+  var vendAOA = [['Vendedor'].concat(STATUSES).concat(['Total mov.'])];
+  vendLinhas.forEach(function(v){ vendAOA.push([v.vendedor].concat(STATUSES.map(function(s){return v[s];})).concat([v.total])); });
+  addAOA('Vendedores', vendAOA);
+
+  var canalAOA = [['Origem','Movimentações no '+rotuloPer]];
+  canalDados.labels.forEach(function(l,idx){ canalAOA.push([l, canalDados.vals[idx]]); });
+  addAOA('Canais de Origem', canalAOA);
+
+  var ganhosPer = leads.filter(function(l){ return l.status==='Convertido' && dentro(l.dataStatus,PERIODO_MOV_INI,PERIODO_MOV_FIM); });
+  var ganhosAOA = [['Razão Social','CNPJ','Estado','Time','Prospector','Data cadastro','Data fechamento','Dias até fechar','Valor (R$)']];
+  ganhosPer.slice().sort(function(a,b){ return (a.razaoSocial||'').localeCompare(b.razaoSocial||'','pt-BR'); }).forEach(function(l){
+    ganhosAOA.push([l.razaoSocial, l.cnpj, l.uf, l.time, l.vendedor, l.dataCadastro.toLocaleDateString('pt-BR'), l.dataStatus.toLocaleDateString('pt-BR'), diasParaFechar(l), l.valor]);
+  });
+  addAOA('Convertidos - Tempo ate Fechar', ganhosAOA);
+
+  addAOA('Novos no Periodo', detalheAOA(kPer.novosList, []));
+  addAOA('Convertidos no Periodo', detalheAOA(kPer.ganhosList, [{label:'Valor (R$)', get:function(l){return l.valor;}}]));
+  addAOA('Perdidos no Periodo', detalheAOA(kPer.perdidosList, [{label:'Motivo', get:function(l){return l.motivoPerda;}}]));
+
+  var nomeArquivo = 'CRM_LEADS_semana_'+RG_PERIODO.ini+'_a_'+addDays(SEMANA_FIM,-1).toLocaleDateString('pt-BR').split('/').reverse().join('-')+'.xlsx';
+  XLSX.writeFile(wb, nomeArquivo);
+}
+
+ 
+var chartGDia=null, chartGSemana=null, chartGDias=null;
+
+
+
+
+function _picoVazio(wrapId, canvasId, temDado){
+  var wrap = document.getElementById(wrapId);
+  var canvas = document.getElementById(canvasId);
+  var aviso = wrap.querySelector('.pico-vazio');
+  if(!temDado){
+    canvas.style.display='none';
+    if(!aviso){ aviso=document.createElement('div'); aviso.className='pico-vazio empty-note'; aviso.style.cssText='padding-top:80px;text-align:center'; wrap.appendChild(aviso); }
+    aviso.style.display='block'; aviso.textContent='Sem Convertidos neste período.';
+    return false;
+  }
+  canvas.style.display='block';
+  if(aviso) aviso.style.display='none';
+  return true;
+}
+
+function renderGanhosPorDia(leads){
+  var ganhos = leads.filter(function(l){ return l.status==='Convertido' && dentro(l.dataStatus,PERIODO_MOV_INI,PERIODO_MOV_FIM); });
+  if(chartGDia){ chartGDia.destroy(); chartGDia=null; }
+  if(!_picoVazio('wrapGanhosDia','chartGanhosDia', ganhos.length>0)) return;
+  var labels=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  var vals=[0,0,0,0,0,0,0];
+  ganhos.forEach(function(l){ var dow=(l.dataStatus.getDay()+6)%7; vals[dow]++; });
+  chartGDia = new Chart(document.getElementById('chartGanhosDia'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ label:'Convertidos', data:vals, backgroundColor:'#1a7a3c', borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}} }
+  });
+}
+
+
+
+
+var _bucketsSemana = [];
+function renderGanhosPorSemana(leads){
+  var ini = MES_INICIO, fim = MES_FIM;
+  var buckets=[]; 
+  var cursor = new Date(ini);
+  var semIdx=1;
+  var limite = SEMANA_FIM < fim ? SEMANA_FIM : fim;   // não mostra semanas depois da semana de referência
+  while(cursor < limite){
+    var segDaSemana = addDays(cursor, -((cursor.getDay()+6)%7));
+    var iniB = cursor;
+    var fimSemana = addDays(segDaSemana, 7);
+    var fimB = fimSemana < fim ? fimSemana : fim;
+    buckets.push({ label:'Sem '+semIdx+(+iniB===+SEMANA_INICIO?' (esta)':''), ini:new Date(iniB), fim:new Date(fimB), count:0 });
+    cursor = new Date(fimB);
+    semIdx++;
+  }
+  _bucketsSemana = buckets;
+  
+  var ganhos = leads.filter(function(l){ return l.status==='Convertido' && dentro(l.dataStatus,ini,fim); });
+  ganhos.forEach(function(l){
+    for(var b=0;b<buckets.length;b++){ if(l.dataStatus>=buckets[b].ini && l.dataStatus<buckets[b].fim){ buckets[b].count++; break; } }
+  });
+  if(chartGSemana){ chartGSemana.destroy(); chartGSemana=null; }
+  if(!_picoVazio('wrapGanhosSemana','chartGanhosSemana', ganhos.length>0)) return;
+  
+  var cores = buckets.map(function(b){ return +b.ini===+SEMANA_INICIO ? '#A6192E' : '#8BB8E8'; });
+  chartGSemana = new Chart(document.getElementById('chartGanhosSemana'), {
+    type:'bar',
+    data:{ labels:buckets.map(function(b){return b.label;}), datasets:[{ label:'Convertidos', data:buckets.map(function(b){return b.count;}), backgroundColor:cores, borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{title:function(items){ var b=buckets[items[0].dataIndex]; return b.label+' ('+b.ini.toLocaleDateString('pt-BR')+' a '+addDays(b.fim,-1).toLocaleDateString('pt-BR')+')'; }, afterTitle:function(items){ var b=buckets[items[0].dataIndex]; return +b.ini===+SEMANA_INICIO ? 'Semana deste relatório — clique para ver os convertidos' : 'Outra semana — os dados ficam no relatório dela'; }}}},
+      scales:{y:{beginAtZero:true, ticks:{precision:0}}},
+      onClick:function(evt, els){
+        if(!els.length) return;
+        var b = buckets[els[0].index];
+        if(+b.ini===+SEMANA_INICIO){ abrirModalKPI('ganhos'); return; }
+        // outra semana: este link não traz os dados dela
+        document.getElementById('modalTitulo').textContent = b.label+' — '+b.ini.toLocaleDateString('pt-BR')+' a '+addDays(b.fim,-1).toLocaleDateString('pt-BR');
+        document.getElementById('modalBody').innerHTML = '<div class="aviso-semana">📄 <b>Consulte o relatório referente a essa semana.</b><br>Este link mostra só os dados da semana de '+SEMANA_INICIO.toLocaleDateString('pt-BR')+' a '+addDays(SEMANA_FIM,-1).toLocaleDateString('pt-BR')+'.</div>';
+        document.getElementById('modalOverlay').style.display = 'flex';
+      },
+      onHover:function(evt, els){ evt.native.target.style.cursor = els.length?'pointer':'default'; }
+    }
+  });
+}
+
+
+
+var _diasFecharDados = null;
+function renderDiasParaFechar(leads){
+  var ganhos = leads.filter(function(l){ return l.status==='Convertido' && dentro(l.dataStatus,PERIODO_MOV_INI,PERIODO_MOV_FIM); });
+  var porTime={};
+  ganhos.forEach(function(l){
+    if(!porTime[l.time]) porTime[l.time]={totalDias:0, qtd:0};
+    porTime[l.time].totalDias += diasParaFechar(l);
+    porTime[l.time].qtd++;
+  });
+  var times = Object.keys(porTime).map(function(t){ return { time:t, media:Math.round(porTime[t].totalDias/porTime[t].qtd), qtd:porTime[t].qtd }; })
+    .sort(function(a,b){ return b.media-a.media; }); 
+  _diasFecharDados = times;
+  desenharDiasParaFechar();
+}
+function desenharDiasParaFechar(){
+  var det = document.getElementById('secDiasFechar');
+  var canvas = document.getElementById('chartDiasFechar');
+  if(chartGDias){ chartGDias.destroy(); chartGDias=null; }
+  if(!det || !det.open) return; 
+  var times = _diasFecharDados || [];
+  if(!times.length){
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    document.getElementById('wrapDiasFechar').style.height='60px';
+    return;
+  }
+  document.getElementById('wrapDiasFechar').style.height = Math.max(120, times.length*40 + 50) + 'px';
+  chartGDias = new Chart(canvas, {
+    type:'bar',
+    data:{ labels:times.map(function(t){return t.time;}), datasets:[
+      { label:'Média de dias até fechar', data:times.map(function(t){return t.media;}), backgroundColor:'#002f63', borderRadius:4, mediaQtd:times.map(function(t){return t.qtd;}) }
+    ]},
+    options:{ indexAxis:'y', maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:function(ctx){ var q=ctx.dataset.mediaQtd[ctx.dataIndex]; return 'Média: '+ctx.parsed.x+' dia(s) — '+q+' Convertido(s) na semana'; } } } },
+      scales:{ x:{ beginAtZero:true, ticks:{precision:0}, title:{display:true, text:'dias'} } } }
+  });
+}
+
+function _labelPeriodoMov(){
+  if(_semanaSelecionada) return _semanaSelecionada.txt+' (semana selecionada)';
+  if(MODO==='atual'){
+    var base = SEMANA_INICIO.toLocaleDateString('pt-BR')+' a '+addDays(SEMANA_FIM,-1).toLocaleDateString('pt-BR');
+    return base + (SEMANA_PARCIAL ? ' (semana em curso, parcial)' : '');
+  }
+  return MES_INICIO.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})+' (mês inteiro)';
+}
+
+function renderAll(){
+  var leadsTime = leadsPorTime();      
+  var leads = leadsFiltrados();        
+  var nomeMes = MES_INICIO.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var palavra = _semanaSelecionada ? 'semana selecionada' : (MODO==='atual' ? 'semana' : 'mês');
+
+  
+  var semChip = document.getElementById('semanaChip');
+  if(_semanaSelecionada){ semChip.style.display='inline-flex'; document.getElementById('semanaChipTexto').textContent='Semana: '+_semanaSelecionada.txt; }
+  else semChip.style.display='none';
+
+  
+  document.getElementById('lblMes').textContent = nomeMes;
+  document.getElementById('descMensal').innerHTML = !MES_FECHADO
+    ? 'Olha o <b>mês</b> ('+nomeMes+', do dia 1 até o fim da semana de referência).'
+    : 'Olha o <b>mês inteiro</b> de '+nomeMes+' (a semana deste relatório fecha o mês).';
+  document.getElementById('lblPicos').textContent = MODO==='atual' ? '(por dia da última semana e por semana do mês)' : '(por dia da semana no mês e por semana do mês)';
+  document.getElementById('lblGanhosDia').textContent = MODO==='atual' ? 'Convertidos por dia ('+_labelPeriodoMov()+')' : 'Convertidos por dia da semana (mês inteiro)';
+  document.getElementById('lblFunil').textContent = '(movimentações de status — '+_labelPeriodoMov()+')';
+  document.getElementById('descFunil').innerHTML = 'Conta as <b>mudanças de status</b> registradas no período ('+palavra+'): cada status mostra quantos leads do time <b>entraram naquele status</b> (ex.: "Convertido" = quantos fecharam no período). Um lead que se moveu mais de uma vez conta em cada status — é contagem de movimentações, não de leads distintos.'+(_semanaSelecionada?' <b>Filtrado pela semana clicada no gráfico de Convertidos.</b>':'');
+  document.getElementById('lblVend').textContent = '(movimentações de status — '+_labelPeriodoMov()+'; zerados ocultos)';
+  document.getElementById('lblCanais').textContent = '(movimentações — '+_labelPeriodoMov()+'; clique numa barra pra filtrar por essa origem)';
+
+  
+  var futuro = ehMesFuturo(MES_SELECIONADO);
+
+  
+  renderKpis(leads, MES_INICIO, MES_FIM, 'kpiMensal');
+
+  
+  var blocoSem = document.getElementById('blocoSemanal');
+  var aviso = document.getElementById('avisoMesFechado');
+  if(MODO==='atual'){
+    blocoSem.style.display='';
+    aviso.style.display='none';
+    
+    
+    
+    var kpiIni = _semanaSelecionada ? _semanaSelecionada.ini : SEMANA_INICIO;
+    var kpiFim = _semanaSelecionada ? _semanaSelecionada.fim : SEMANA_FIM;
+    var kpiAntIni = addDays(kpiIni, -7); 
+    var kpiAntFim = kpiIni;
+    document.getElementById('lblSemana').textContent = _labelPeriodoMov();
+    var txtAtual = kpiIni.toLocaleDateString('pt-BR')+'–'+addDays(kpiFim,-1).toLocaleDateString('pt-BR');
+    var txtAnt = kpiAntIni.toLocaleDateString('pt-BR')+'–'+addDays(kpiAntFim,-1).toLocaleDateString('pt-BR');
+    document.getElementById('descSemanal').innerHTML =
+      (_semanaSelecionada
+        ? 'Semana <b>selecionada</b> no gráfico de Convertidos: <b>'+_semanaSelecionada.txt+'</b>. '
+        : 'Semana de referência deste relatório: <b>'+SEMANA_INICIO.toLocaleDateString('pt-BR')+' a '+addDays(SEMANA_FIM,-1).toLocaleDateString('pt-BR')+'</b>'+(RG_PERIODO.recortada ? ' (recortada no limite de '+nomeMes+')' : '')+'. ')+
+      'Todos os blocos abaixo (Funil, Vendedores, Canais) refletem essa mesma semana. '+
+      'Comparativo (WoW): <b>'+txtAtual+'</b> vs <b>'+txtAnt+'</b>'+
+      ((kpiAntIni < MES_INICIO) ? ' <i>(a semana anterior cai no mês passado)</i>' : '')+
+      '. Clique em qualquer card pra ver a lista de leads desta semana.';
+    renderKpisComWoW(leads, kpiIni, kpiFim, kpiAntIni, kpiAntFim, 'kpiSemanal');
+  } else {
+    blocoSem.style.display='none';
+    aviso.style.display='block';
+    aviso.innerHTML = futuro
+      ? '📅 <b>'+nomeMes+'</b> ainda não chegou — não há dados para exibir. Os números aparecerão conforme os leads forem cadastrados e movimentados nesse mês.'
+      : '📅 Visão do mês fechado <b>'+nomeMes+'</b>: os KPIs semanais não se aplicam. Todos os blocos abaixo (funil, vendedores, canais, picos de venda) mostram o <b>mês inteiro</b>.';
+  }
+
+  renderGanhosPorDia(leads);
+  renderGanhosPorSemana(leads);
+  renderDiasParaFechar(leads);
+  renderFunilPorTime(leads);
+  renderVendedores(leads);
+  renderCanais(leadsTime);
+}
+
+buildDropdown();
+atualizarLabel();
+renderAll();
+</script>
+</body>
+</html>
+
